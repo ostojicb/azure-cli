@@ -1,4 +1,3 @@
-@echo off
 SetLocal EnableDelayedExpansion
 echo build a msi installer using local cli sources and python executables. You need to have curl.exe, unzip.exe and msbuild.exe available under PATH
 echo.
@@ -179,6 +178,8 @@ if exist "%PROPAGATE_ENV_CHANGE_DIR%\propagate_env_change.exe" (
 
 echo Building MSI...
 msbuild /t:rebuild /p:Configuration=Release %REPO_ROOT%\build_scripts\windows\azure-cli.wixproj
+
+if %errorlevel% neq 0 goto ERROR
 
 start %OUTPUT_DIR%
 
