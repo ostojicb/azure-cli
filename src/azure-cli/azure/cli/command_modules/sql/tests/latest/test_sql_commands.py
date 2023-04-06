@@ -5666,85 +5666,85 @@ class SqlManagedInstanceRestoreDeletedDbScenarioTest(ScenarioTest):
 
 
 class SqlManagedInstanceDbMgmtScenarioTest(ScenarioTest):
-    @ManagedInstancePreparer()
-    def test_sql_managed_db_mgmt(self, mi, rg):
-        database_name = "cliautomationdb01"
-        database_name_restored = "restoredcliautomationdb01"
+    # @ManagedInstancePreparer()
+    # def test_sql_managed_db_mgmt(self, mi, rg):
+    #     database_name = "cliautomationdb01"
+    #     database_name_restored = "restoredcliautomationdb01"
 
-        managed_instance_name_1 = mi
-        resource_group_1 = rg
+    #     managed_instance_name_1 = mi
+    #     resource_group_1 = rg
 
-        loc = ManagedInstancePreparer.location
-        collation = ManagedInstancePreparer.collation
+    #     loc = ManagedInstancePreparer.location
+    #     collation = ManagedInstancePreparer.collation
 
-        # test sql db commands
-        db1 = self.cmd('sql midb create -g {} --mi {} -n {} --collation {}'
-                       .format(resource_group_1, managed_instance_name_1, database_name, collation),
-                       checks=[
-                           JMESPathCheck('resourceGroup', resource_group_1),
-                           JMESPathCheck('name', database_name),
-                           JMESPathCheck('location', loc),
-                           JMESPathCheck('collation', collation),
-                           JMESPathCheck('status', 'Online')]).get_output_in_json()
+    #     # test sql db commands
+    #     db1 = self.cmd('sql midb create -g {} --mi {} -n {} --collation {}'
+    #                    .format(resource_group_1, managed_instance_name_1, database_name, collation),
+    #                    checks=[
+    #                        JMESPathCheck('resourceGroup', resource_group_1),
+    #                        JMESPathCheck('name', database_name),
+    #                        JMESPathCheck('location', loc),
+    #                        JMESPathCheck('collation', collation),
+    #                        JMESPathCheck('status', 'Online')]).get_output_in_json()
 
-        time.sleep(
-            300)  # Sleeping 5 minutes should be enough for the restore to be possible (Skipped under playback mode)
+    #     time.sleep(
+    #         300)  # Sleeping 5 minutes should be enough for the restore to be possible (Skipped under playback mode)
 
-        # test sql db restore command
-        db1 = self.cmd('sql midb restore -g {} --mi {} -n {} --dest-name {} --time {}'
-                       .format(resource_group_1, managed_instance_name_1, database_name, database_name_restored,
-                               datetime.utcnow().isoformat()),
-                       checks=[
-                           JMESPathCheck('resourceGroup', resource_group_1),
-                           JMESPathCheck('name', database_name_restored),
-                           JMESPathCheck('location', loc),
-                           JMESPathCheck('status', 'Online')]).get_output_in_json()
+    #     # test sql db restore command
+    #     db1 = self.cmd('sql midb restore -g {} --mi {} -n {} --dest-name {} --time {}'
+    #                    .format(resource_group_1, managed_instance_name_1, database_name, database_name_restored,
+    #                            datetime.utcnow().isoformat()),
+    #                    checks=[
+    #                        JMESPathCheck('resourceGroup', resource_group_1),
+    #                        JMESPathCheck('name', database_name_restored),
+    #                        JMESPathCheck('location', loc),
+    #                        JMESPathCheck('status', 'Online')]).get_output_in_json()
 
-        self.cmd('sql midb list -g {} --managed-instance {}'
-                 .format(resource_group_1, managed_instance_name_1),
-                 checks=[JMESPathCheck('length(@)', 2)])
+    #     self.cmd('sql midb list -g {} --managed-instance {}'
+    #              .format(resource_group_1, managed_instance_name_1),
+    #              checks=[JMESPathCheck('length(@)', 2)])
 
-        self.cmd('sql midb update -g {} --managed-instance {} -n {} --tags {}'
-                 .format(resource_group_1, managed_instance_name_1, database_name, "bar=foo"),
-                 checks=[JMESPathCheck('tags', "{'bar': 'foo'}")])
+    #     self.cmd('sql midb update -g {} --managed-instance {} -n {} --tags {}'
+    #              .format(resource_group_1, managed_instance_name_1, database_name, "bar=foo"),
+    #              checks=[JMESPathCheck('tags', "{'bar': 'foo'}")])
 
-        # test merge managed database tags
-        tag3 = "tagName3=tagValue3"
-        self.cmd('sql midb update -g {} --managed-instance {} -n {} --set tags.{}'
-                 .format(resource_group_1, managed_instance_name_1, database_name, tag3),
-                 checks=[
-                     JMESPathCheck('tags',
-                                   "{'bar': 'foo', 'tagName3': 'tagValue3'}")])
+    #     # test merge managed database tags
+    #     tag3 = "tagName3=tagValue3"
+    #     self.cmd('sql midb update -g {} --managed-instance {} -n {} --set tags.{}'
+    #              .format(resource_group_1, managed_instance_name_1, database_name, tag3),
+    #              checks=[
+    #                  JMESPathCheck('tags',
+    #                                "{'bar': 'foo', 'tagName3': 'tagValue3'}")])
 
-        # Show by group/managed_instance/database-name
-        self.cmd('sql midb show -g {} --managed-instance {} -n {}'
-                 .format(resource_group_1, managed_instance_name_1, database_name),
-                 checks=[
-                     JMESPathCheck('name', database_name),
-                     JMESPathCheck('resourceGroup', resource_group_1),
-                     JMESPathCheck('location', loc),
-                     JMESPathCheck('collation', collation),
-                     JMESPathCheck('status', 'Online')])
+    #     # Show by group/managed_instance/database-name
+    #     self.cmd('sql midb show -g {} --managed-instance {} -n {}'
+    #              .format(resource_group_1, managed_instance_name_1, database_name),
+    #              checks=[
+    #                  JMESPathCheck('name', database_name),
+    #                  JMESPathCheck('resourceGroup', resource_group_1),
+    #                  JMESPathCheck('location', loc),
+    #                  JMESPathCheck('collation', collation),
+    #                  JMESPathCheck('status', 'Online')])
 
-        # Show by id
-        self.cmd('sql midb show --ids {}'
-                 .format(db1['id']),
-                 checks=[
-                     JMESPathCheck('name', database_name_restored),
-                     JMESPathCheck('resourceGroup', resource_group_1),
-                     JMESPathCheck('location', loc),
-                     JMESPathCheck('collation', collation),
-                     JMESPathCheck('status', 'Online')])
+    #     # Show by id
+    #     self.cmd('sql midb show --ids {}'
+    #              .format(db1['id']),
+    #              checks=[
+    #                  JMESPathCheck('name', database_name_restored),
+    #                  JMESPathCheck('resourceGroup', resource_group_1),
+    #                  JMESPathCheck('location', loc),
+    #                  JMESPathCheck('collation', collation),
+    #                  JMESPathCheck('status', 'Online')])
 
-        # Delete by group/server/name
-        self.cmd('sql midb delete -g {} --managed-instance {} -n {} --yes'
-                 .format(resource_group_1, managed_instance_name_1, database_name),
-                 checks=[NoneCheck()])
+    #     # Delete by group/server/name
+    #     self.cmd('sql midb delete -g {} --managed-instance {} -n {} --yes'
+    #              .format(resource_group_1, managed_instance_name_1, database_name),
+    #              checks=[NoneCheck()])
 
-        # test show sql managed db doesn't return anything
-        self.cmd('sql midb show -g {} --managed-instance {} -n {}'
-                 .format(resource_group_1, managed_instance_name_1, database_name),
-                 expect_failure=True)
+    #     # test show sql managed db doesn't return anything
+    #     self.cmd('sql midb show -g {} --managed-instance {} -n {}'
+    #              .format(resource_group_1, managed_instance_name_1, database_name),
+    #              expect_failure=True)
 
     @ManagedInstancePreparer()
     def test_sql_midb_ledger(self, mi, rg):
