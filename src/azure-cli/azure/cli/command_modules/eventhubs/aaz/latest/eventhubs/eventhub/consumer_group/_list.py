@@ -12,19 +12,16 @@ from azure.cli.core.aaz import *
 
 
 @register_command(
-    "sql mi server-configuration-option list",
+    "eventhubs eventhub consumer-group list",
 )
 class List(AAZCommand):
-    """List a list of managed instance server configuration options.
-
-    :example: List server configuration options on ManagedInstance_1 in ResourceGroup_1
-        az sql mi server-configuration-option list -g 'ResourceGroup_1' --mi 'ManagedInstance_1'
+    """List all the consumer groups in a Namespace. An empty feed is returned if no consumer group exists in the Namespace.
     """
 
     _aaz_info = {
-        "version": "2022-08-01-preview",
+        "version": "2022-01-01-preview",
         "resources": [
-            ["mgmt-plane", "/subscriptions/{}/resourcegroups/{}/providers/microsoft.sql/managedinstances/{}/serverconfigurationoptions", "2022-08-01-preview"],
+            ["mgmt-plane", "/subscriptions/{}/resourcegroups/{}/providers/microsoft.eventhub/namespaces/{}/eventhubs/{}/consumergroups", "2022-01-01-preview"],
         ]
     }
 
@@ -43,19 +40,48 @@ class List(AAZCommand):
         # define Arg Group ""
 
         _args_schema = cls._args_schema
-        _args_schema.managed_instance_name = AAZStrArg(
-            options=["--mi", "--instance-name", "--managed-instance", "--managed-instance-name"],
-            help="Name of the managed instance.",
+        _args_schema.eventhub_name = AAZStrArg(
+            options=["--eventhub-name"],
+            help="The Event Hub name",
             required=True,
+            fmt=AAZStrArgFormat(
+                max_length=256,
+                min_length=1,
+            ),
+        )
+        _args_schema.namespace_name = AAZStrArg(
+            options=["--namespace-name"],
+            help="The Namespace name",
+            required=True,
+            fmt=AAZStrArgFormat(
+                max_length=50,
+                min_length=6,
+            ),
         )
         _args_schema.resource_group = AAZResourceGroupNameArg(
             required=True,
+        )
+        _args_schema.skip = AAZIntArg(
+            options=["--skip"],
+            help="Skip is only used if a previous operation returned a partial result. If a previous response contains a nextLink element, the value of the nextLink element will include a skip parameter that specifies a starting point to use for subsequent calls.",
+            fmt=AAZIntArgFormat(
+                maximum=1000,
+                minimum=0,
+            ),
+        )
+        _args_schema.top = AAZIntArg(
+            options=["--top"],
+            help="May be used to limit the number of results to the most recent N usageDetails.",
+            fmt=AAZIntArgFormat(
+                maximum=1000,
+                minimum=1,
+            ),
         )
         return cls._args_schema
 
     def _execute_operations(self):
         self.pre_operations()
-        self.ServerConfigurationOptionsListByManagedInstance(ctx=self.ctx)()
+        self.ConsumerGroupsListByEventHub(ctx=self.ctx)()
         self.post_operations()
 
     @register_callback
@@ -71,7 +97,7 @@ class List(AAZCommand):
         next_link = self.deserialize_output(self.ctx.vars.instance.next_link)
         return result, next_link
 
-    class ServerConfigurationOptionsListByManagedInstance(AAZHttpOperation):
+    class ConsumerGroupsListByEventHub(AAZHttpOperation):
         CLIENT_TYPE = "MgmtClient"
 
         def __call__(self, *args, **kwargs):
@@ -85,7 +111,7 @@ class List(AAZCommand):
         @property
         def url(self):
             return self.client.format_url(
-                "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/managedInstances/{managedInstanceName}/serverConfigurationOptions",
+                "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.EventHub/namespaces/{namespaceName}/eventhubs/{eventHubName}/consumergroups",
                 **self.url_parameters
             )
 
@@ -95,13 +121,17 @@ class List(AAZCommand):
 
         @property
         def error_format(self):
-            return "ODataV4Format"
+            return "MgmtErrorFormat"
 
         @property
         def url_parameters(self):
             parameters = {
                 **self.serialize_url_param(
-                    "managedInstanceName", self.ctx.args.managed_instance_name,
+                    "eventHubName", self.ctx.args.eventhub_name,
+                    required=True,
+                ),
+                **self.serialize_url_param(
+                    "namespaceName", self.ctx.args.namespace_name,
                     required=True,
                 ),
                 **self.serialize_url_param(
@@ -119,7 +149,13 @@ class List(AAZCommand):
         def query_parameters(self):
             parameters = {
                 **self.serialize_query_param(
-                    "api-version", "2022-08-01-preview",
+                    "$skip", self.ctx.args.skip,
+                ),
+                **self.serialize_query_param(
+                    "$top", self.ctx.args.top,
+                ),
+                **self.serialize_query_param(
+                    "api-version", "2022-01-01-preview",
                     required=True,
                 ),
             }
@@ -154,11 +190,8 @@ class List(AAZCommand):
             _schema_on_200 = cls._schema_on_200
             _schema_on_200.next_link = AAZStrType(
                 serialized_name="nextLink",
-                flags={"read_only": True},
             )
-            _schema_on_200.value = AAZListType(
-                flags={"read_only": True},
-            )
+            _schema_on_200.value = AAZListType()
 
             value = cls._schema_on_200.value
             value.Element = AAZObjectType()
@@ -167,24 +200,54 @@ class List(AAZCommand):
             _element.id = AAZStrType(
                 flags={"read_only": True},
             )
+            _element.location = AAZStrType(
+                flags={"read_only": True},
+            )
             _element.name = AAZStrType(
                 flags={"read_only": True},
             )
             _element.properties = AAZObjectType(
                 flags={"client_flatten": True},
             )
+            _element.system_data = AAZObjectType(
+                serialized_name="systemData",
+                flags={"read_only": True},
+            )
             _element.type = AAZStrType(
                 flags={"read_only": True},
             )
 
             properties = cls._schema_on_200.value.Element.properties
-            properties.provisioning_state = AAZStrType(
-                serialized_name="provisioningState",
+            properties.created_at = AAZStrType(
+                serialized_name="createdAt",
                 flags={"read_only": True},
             )
-            properties.server_configuration_option_value = AAZIntType(
-                serialized_name="serverConfigurationOptionValue",
-                flags={"required": True},
+            properties.updated_at = AAZStrType(
+                serialized_name="updatedAt",
+                flags={"read_only": True},
+            )
+            properties.user_metadata = AAZStrType(
+                serialized_name="userMetadata",
+            )
+
+            system_data = cls._schema_on_200.value.Element.system_data
+            system_data.created_at = AAZStrType(
+                serialized_name="createdAt",
+            )
+            system_data.created_by = AAZStrType(
+                serialized_name="createdBy",
+            )
+            system_data.created_by_type = AAZStrType(
+                serialized_name="createdByType",
+            )
+            system_data.last_modified_at = AAZStrType(
+                serialized_name="lastModifiedAt",
+            )
+            system_data.last_modified_by = AAZStrType(
+                serialized_name="lastModifiedBy",
+            )
+            system_data.last_modified_by_type = AAZStrType(
+                serialized_name="lastModifiedByType",
             )
 
             return cls._schema_on_200

@@ -12,22 +12,22 @@ from azure.cli.core.aaz import *
 
 
 @register_command(
-    "sql mi server-configuration-option wait",
+    "eventhubs namespace private-endpoint-connection list",
 )
-class Wait(AAZWaitCommand):
-    """Place the CLI in a waiting state until a condition is met.
+class List(AAZCommand):
+    """List the available PrivateEndpointConnections within a namespace.
     """
 
     _aaz_info = {
+        "version": "2022-01-01-preview",
         "resources": [
-            ["mgmt-plane", "/subscriptions/{}/resourcegroups/{}/providers/microsoft.sql/managedinstances/{}/serverconfigurationoptions/{}", "2022-08-01-preview"],
+            ["mgmt-plane", "/subscriptions/{}/resourcegroups/{}/providers/microsoft.eventhub/namespaces/{}/privateendpointconnections", "2022-01-01-preview"],
         ]
     }
 
     def _handler(self, command_args):
         super()._handler(command_args)
-        self._execute_operations()
-        return self._output()
+        return self.build_paging(self._execute_operations, self._output)
 
     _args_schema = None
 
@@ -40,27 +40,23 @@ class Wait(AAZWaitCommand):
         # define Arg Group ""
 
         _args_schema = cls._args_schema
-        _args_schema.managed_instance_name = AAZStrArg(
-            options=["--mi", "--instance-name", "--managed-instance", "--managed-instance-name"],
-            help="Name of the managed instance.",
+        _args_schema.namespace_name = AAZStrArg(
+            options=["--namespace-name"],
+            help="The Namespace name",
             required=True,
-            id_part="name",
+            fmt=AAZStrArgFormat(
+                max_length=50,
+                min_length=6,
+            ),
         )
         _args_schema.resource_group = AAZResourceGroupNameArg(
             required=True,
-        )
-        _args_schema.server_configuration_option_name = AAZStrArg(
-            options=["-n", "--name", "--server-configuration-option-name"],
-            help="Name of the server configuration option.",
-            required=True,
-            id_part="child_name_1",
-            enum={"allowPolybaseExport": "allowPolybaseExport"},
         )
         return cls._args_schema
 
     def _execute_operations(self):
         self.pre_operations()
-        self.ServerConfigurationOptionsGet(ctx=self.ctx)()
+        self.PrivateEndpointConnectionsList(ctx=self.ctx)()
         self.post_operations()
 
     @register_callback
@@ -72,10 +68,11 @@ class Wait(AAZWaitCommand):
         pass
 
     def _output(self, *args, **kwargs):
-        result = self.deserialize_output(self.ctx.vars.instance, client_flatten=False)
-        return result
+        result = self.deserialize_output(self.ctx.vars.instance.value, client_flatten=True)
+        next_link = self.deserialize_output(self.ctx.vars.instance.next_link)
+        return result, next_link
 
-    class ServerConfigurationOptionsGet(AAZHttpOperation):
+    class PrivateEndpointConnectionsList(AAZHttpOperation):
         CLIENT_TYPE = "MgmtClient"
 
         def __call__(self, *args, **kwargs):
@@ -89,7 +86,7 @@ class Wait(AAZWaitCommand):
         @property
         def url(self):
             return self.client.format_url(
-                "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/managedInstances/{managedInstanceName}/serverConfigurationOptions/{serverConfigurationOptionName}",
+                "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.EventHub/namespaces/{namespaceName}/privateEndpointConnections",
                 **self.url_parameters
             )
 
@@ -99,21 +96,17 @@ class Wait(AAZWaitCommand):
 
         @property
         def error_format(self):
-            return "ODataV4Format"
+            return "MgmtErrorFormat"
 
         @property
         def url_parameters(self):
             parameters = {
                 **self.serialize_url_param(
-                    "managedInstanceName", self.ctx.args.managed_instance_name,
+                    "namespaceName", self.ctx.args.namespace_name,
                     required=True,
                 ),
                 **self.serialize_url_param(
                     "resourceGroupName", self.ctx.args.resource_group,
-                    required=True,
-                ),
-                **self.serialize_url_param(
-                    "serverConfigurationOptionName", self.ctx.args.server_configuration_option_name,
                     required=True,
                 ),
                 **self.serialize_url_param(
@@ -127,7 +120,7 @@ class Wait(AAZWaitCommand):
         def query_parameters(self):
             parameters = {
                 **self.serialize_query_param(
-                    "api-version", "2022-08-01-preview",
+                    "api-version", "2022-01-01-preview",
                     required=True,
                 ),
             }
@@ -160,34 +153,78 @@ class Wait(AAZWaitCommand):
             cls._schema_on_200 = AAZObjectType()
 
             _schema_on_200 = cls._schema_on_200
-            _schema_on_200.id = AAZStrType(
+            _schema_on_200.next_link = AAZStrType(
+                serialized_name="nextLink",
+            )
+            _schema_on_200.value = AAZListType()
+
+            value = cls._schema_on_200.value
+            value.Element = AAZObjectType()
+
+            _element = cls._schema_on_200.value.Element
+            _element.id = AAZStrType(
                 flags={"read_only": True},
             )
-            _schema_on_200.name = AAZStrType(
+            _element.location = AAZStrType(
                 flags={"read_only": True},
             )
-            _schema_on_200.properties = AAZObjectType(
+            _element.name = AAZStrType(
+                flags={"read_only": True},
+            )
+            _element.properties = AAZObjectType(
                 flags={"client_flatten": True},
             )
-            _schema_on_200.type = AAZStrType(
+            _element.system_data = AAZObjectType(
+                serialized_name="systemData",
+                flags={"read_only": True},
+            )
+            _element.type = AAZStrType(
                 flags={"read_only": True},
             )
 
-            properties = cls._schema_on_200.properties
+            properties = cls._schema_on_200.value.Element.properties
+            properties.private_endpoint = AAZObjectType(
+                serialized_name="privateEndpoint",
+            )
+            properties.private_link_service_connection_state = AAZObjectType(
+                serialized_name="privateLinkServiceConnectionState",
+            )
             properties.provisioning_state = AAZStrType(
                 serialized_name="provisioningState",
-                flags={"read_only": True},
             )
-            properties.server_configuration_option_value = AAZIntType(
-                serialized_name="serverConfigurationOptionValue",
-                flags={"required": True},
+
+            private_endpoint = cls._schema_on_200.value.Element.properties.private_endpoint
+            private_endpoint.id = AAZStrType()
+
+            private_link_service_connection_state = cls._schema_on_200.value.Element.properties.private_link_service_connection_state
+            private_link_service_connection_state.description = AAZStrType()
+            private_link_service_connection_state.status = AAZStrType()
+
+            system_data = cls._schema_on_200.value.Element.system_data
+            system_data.created_at = AAZStrType(
+                serialized_name="createdAt",
+            )
+            system_data.created_by = AAZStrType(
+                serialized_name="createdBy",
+            )
+            system_data.created_by_type = AAZStrType(
+                serialized_name="createdByType",
+            )
+            system_data.last_modified_at = AAZStrType(
+                serialized_name="lastModifiedAt",
+            )
+            system_data.last_modified_by = AAZStrType(
+                serialized_name="lastModifiedBy",
+            )
+            system_data.last_modified_by_type = AAZStrType(
+                serialized_name="lastModifiedByType",
             )
 
             return cls._schema_on_200
 
 
-class _WaitHelper:
-    """Helper class for Wait"""
+class _ListHelper:
+    """Helper class for List"""
 
 
-__all__ = ["Wait"]
+__all__ = ["List"]
